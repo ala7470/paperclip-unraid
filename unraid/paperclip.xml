@@ -12,7 +12,7 @@
     <Privileged>no</Privileged>
     <Support>https://github.com/paperclipai/paperclip/issues</Support>
     <WebUI>http://[IP]:[?PORT]/</WebUI>
-    <Icon>https://raw.githubusercontent.com/CHANGE-ME/paperclip-unraid/main/unraid/paperclip-icon.png</Icon>
+    <Icon>https://raw.githubusercontent.com/ala7470/paperclip-unraid/main/unraid/paperclip-icon.png</Icon>
     <Project>https://github.com/paperclipai/paperclip</Project>
   </Params>
   <Header>
