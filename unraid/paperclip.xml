@@ -1,0 +1,51 @@
+<template>
+  <Name>Paperclip</Name>
+  <Description>Control plane for AI-agent companies. Official upstream container - no wrapper image.</Description>
+  <KeepImage>1</KeepImage>
+  <Category>Other Docker:</Category>
+  <Repository>ghcr.io/paperclipai/paperclip</Repository>
+  <Registry>ghcr.io</Registry>
+  <Branch>2026.916.1</Branch>
+  <Params>
+    <Network>bridge</Network>
+    <Shell>/bin/bash -t</Shell>
+    <Privileged>no</Privileged>
+    <Support>https://github.com/paperclipai/paperclip/issues</Support>
+    <WebUI>http://[IP]:[?PORT]/</WebUI>
+    <Icon>https://raw.githubusercontent.com/CHANGE-ME/paperclip-unraid/main/unraid/paperclip-icon.png</Icon>
+    <Project>https://github.com/paperclipai/paperclip</Project>
+  </Params>
+  <Header>
+    Paperclip is a control plane for AI-agent companies: manage agent teams, tasks, budgets, and activity from one board.
+
+    This template deploys the official Paperclip container image. All persistent data lives in /mnt/user/appdata/paperclip/.
+  </Header>
+  <Overview>
+    Paperclip serves its board UI and API on port 3100. It uses an embedded PostgreSQL database by default - no external database container is required.
+
+    Setup:
+    - BETTER_AUTH_SECRET is required: generate one with `openssl rand -hex 32`.
+    - Set PAPERCLIP_PUBLIC_URL to the LAN URL you use to reach the board.
+    - Deployment mode defaults to authenticated (login required). The local_trusted mode binds to loopback only and will NOT work with the Unraid WebUI button.
+    - USER_UID/USER_GID default to 99/100 (Unraid standard); the image remaps its user at startup.
+    - LLM provider keys are optional at deploy time and can be added later in Docker &gt; Paperclip &gt; Edit.
+
+    Updates:
+    - The template pins the last validated stable release (CalVer, e.g. 2026.916.1). Unraid's Update pulls the new official image and reuses appdata. See docs/UPDATE.md.
+  </Overview>
+  <Variable name="HOST" label="HOST" description="Address the server listens on. Keep 0.0.0.0 for LAN access." default="0.0.0.0" required="false"/>
+  <Variable name="PORT" label="PORT" description="Port the server listens on inside the container." default="3100" required="false"/>
+  <Variable name="SERVE_UI" label="SERVE_UI" description="Serve the web UI from the API server." default="true" required="false"/>
+  <Variable name="PAPERCLIP_HOME" label="PAPERCLIP_HOME" description="Home directory for all persistent data. Must match the mapped path." default="/paperclip" required="false"/>
+  <Variable name="PAPERCLIP_DEPLOYMENT_MODE" label="Deployment mode" description="authenticated = login required (recommended). local_trusted = no auth, loopback-only bind." default="authenticated" required="false"/>
+  <Variable name="PAPERCLIP_DEPLOYMENT_EXPOSURE" label="Deployment exposure" description="private = LAN only (recommended). public = internet-facing; put TLS in front." default="private" required="false"/>
+  <Variable name="PAPERCLIP_PUBLIC_URL" label="Public URL" description="Base URL users use to reach the board, e.g. http://192.168.1.50:3100" default="http://localhost:3100" required="false"/>
+  <Variable name="PAPERCLIP_ALLOWED_HOSTNAMES" label="Allowed hostnames" description="Extra hostnames the instance accepts (LAN or Tailscale aliases), comma-separated" required="false"/>
+  <Variable name="BETTER_AUTH_SECRET" label="Auth secret" description="Required. Session/JWT signing secret. Generate with: openssl rand -hex 32. Do not change after initial setup - it invalidates all sessions." required="true"/>
+  <Variable name="USER_UID" label="User ID (PUID equivalent)" description="Container user ID. The image remaps its user to this at startup." default="99" required="false"/>
+  <Variable name="USER_GID" label="Group ID (PGID equivalent)" description="Container group ID. The image remaps its user to this at startup." default="100" required="false"/>
+  <Variable name="OPENAI_API_KEY" label="OpenAI API key" description="Optional. Enables OpenAI-based agent adapters." required="false"/>
+  <Variable name="ANTHROPIC_API_KEY" label="Anthropic API key" description="Optional. Enables Claude-based agent adapters and the bundled local CLIs." required="false"/>
+  <Port default="3100" target="3100" protocol="tcp" type="tcp"/>
+  <Path default="/mnt/user/appdata/paperclip" target="/paperclip"/>
+</template>

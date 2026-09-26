@@ -1,0 +1,97 @@
+name: Upstream Release Check
+
+# Weekly watch on the upstream Paperclip project.
+# Purpose: surface new stable releases so the pinned template tag can be reviewed.
+# It NEVER modifies the template or production configuration - at most it opens
+# a reminder issue (idempotent, one open issue at a time).
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"  # Mondays 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read pinned version from template
+        id: pinned
+        run: |
+          PINNED=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('unraid/paperclip.xml').getroot().findtext('Branch'))")
+          echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+
+      - name: Check upstream releases
+        id: releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Newest stable release: tag matches vYYYY.MMDD.N (no lane prefix)
+          TAG=$(gh api 'repos/paperclipai/paperclip/releases?per_page=15' \
+            | python3 -c "
+          import sys, json, re
+          rels = json.load(sys.stdin)
+          m = [r['tag_name'] for r in rels if re.fullmatch(r'v\d{4}\.\d{3,4}\.\d+', r['tag_name'])]
+          print(m[0] if m else '')
+          ")
+          echo "latest=$TAG" >> "$GITHUB_OUTPUT"
+          # Newest image tag on GHCR (no v prefix)
+          TOK=$(curl -fs "https://ghcr.io/token?scope=repository:paperclipai/paperclip:pull" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+          IMG=$(curl -fs -H "Authorization: Bearer $TOK" \
+            "https://ghcr.io/v2/paperclipai/paperclip/tags/list?n=200" \
+            | python3 -c "
+          import sys, json, re
+          tags = json.load(sys.stdin).get('tags', [])
+          m = [t for t in tags if re.fullmatch(r'\d{4}\.\d{3,4}\.\d+', t)]
+          m.sort()
+          print(m[-1] if m else '')
+          ")
+          echo "image=$IMG" >> "$GITHUB_OUTPUT"
+          echo "Latest stable release: $TAG"
+          echo "Newest CalVer image tag: $IMG"
+
+      - name: Compare and report
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PINNED="${{ steps.pinned.outputs.pinned }}"
+          LATEST="${{ steps.releases.outputs.latest }}"
+          IMAGE="${{ steps.releases.outputs.image }}"
+          echo "Pinned template tag:  $PINNED"
+          if [ "$LATEST" = "" ]; then
+            echo "No stable release detected (upstream layout may have changed) - manual review needed."
+            exit 0
+          fi
+          IMAGE_TAG="${LATEST#v}"
+          if [ "$PINNED" = "$IMAGE_TAG" ]; then
+            echo "Template is current: pinned to latest stable $IMAGE_TAG. No action required."
+            exit 0
+          fi
+          echo "Template is OUT OF DATE: pinned $PINNED, latest stable $IMAGE_TAG (image tag ${IMAGE_TAG})."
+          # Idempotent reminder issue: close existing open reminder, open a fresh one.
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title:upstream-release-reminder" --json number --jq '.[0].number' || true)
+          if [ -n "${EXISTING:-}" ] && [ "${EXISTING:-}" != "null" ]; then
+            gh issue close "$EXISTING" --repo "$GITHUB_REPOSITORY" --comment "Superseded by a new release check."
+          fi
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "[upstream-release-reminder] Paperclip $IMAGE_TAG is available (template pinned to $PINNED)" \
+            --body "New stable upstream release detected.
+
+- Latest stable release: **$LATEST** (image tag **$IMAGE_TAG**) Newest CalVer image on GHCR: **$IMAGE**
+- Template currently pinned: **$PINNED**
+
+Review checklist before bumping the pin (see docs/UPSTREAM.md):
+- [ ] Release notes: breaking changes, migrations, auth changes
+- [ ] Env var / port / storage changes vs current pin
+- [ ] Database migration notes
+- [ ] Bump Branch in unraid/paperclip.xml, update README.md + CHANGELOG.md
+- [ ] Validate: bash scripts/validate_template.sh"
+          echo "Opened reminder issue."
