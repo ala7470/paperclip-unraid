@@ -75,7 +75,7 @@ Docker -> Paperclip -> Edit:
 | `PAPERCLIP_DEPLOYMENT_MODE` | `authenticated` | Login required |
 | `PAPERCLIP_DEPLOYMENT_EXPOSURE` | `private` | LAN only |
 | `PAPERCLIP_PUBLIC_URL` | your LAN URL | Base URL for the board |
-| `USER_UID` / `USER_GID` | `99` / `100` | Unraid standard user; image remaps at startup |
+| `USER_UID` / `USER_GID` | *(leave unset)* | **Do not set** - the container must run as the image's default user. Forcing the Unraid 99/100 uid crash-loops the container on first boot (`EACCES` on native-library setup). See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Privileged | no | Not needed |
 | Restart | unless-stopped | Unraid default |
 

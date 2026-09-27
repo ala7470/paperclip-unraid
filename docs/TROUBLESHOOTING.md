@@ -24,9 +24,22 @@ General Unraid debugging: Docker -> Paperclip -> **Logs**, and `docker inspect p
 - **`BETTER_AUTH_SECRET` was changed** (accidentally edited) - sessions are invalid, but the server still starts; you can log in fresh. This is not a startup failure.
 - **Roll back** the image tag to the previous version (see [UPDATE.md](UPDATE.md)) and check the container starts, then investigate the new version's release notes.
 
+## Container crash-loops with `EACCES` on a `symlink` (e.g. `libcrypto.so.1.1`)
+
+**Cause:** the container is running under a user ID that does not own files inside the image. This happens if `USER_UID`/`USER_GID` are set to Unraid's `99`/`100` while the app starts up: on first boot it tries to create native-library symlinks (e.g. `libcrypto.so.1.1`) inside image-owned directories and fails with `EACCES`.
+
+**Fix:** remove `USER_UID` and `USER_GID` from the container entirely and let it run as the image's built-in default user. The persistent `/mnt/user/appdata/paperclip` volume is unaffected - Docker mounts are writable by the container user regardless of the host-side numeric ownership of that folder (Unraid ownership is cosmetic for containers). The current template does not set either variable; the validation script rejects them if a future edit re-introduces them.
+
+If you already have appdata files created under a forced uid while the container was crash-looping, wipe that folder before the clean first start (fresh install only - never if you have real data; see [BACKUP-RESTORE.md](BACKUP-RESTORE.md)):
+
+```sh
+# fresh install only
+rm -rf /mnt/user/appdata/paperclip/*
+```
+
 ## Permission / ownership errors on appdata files
 
-The official image remaps its internal user to `USER_UID`/`USER_GID` at startup (default 99/100, the Unraid standard). Do **not** set `PUID`/`PGID` - the image does not read those. If you changed `USER_UID`/`USER_GID` from the defaults, existing files created under 99/100 will not be writable by the new UID. Options: run `chown -R 99:100 /mnt/user/appdata/paperclip/` to reset to the defaults, or keep the custom UID consistent.
+The image runs as its built-in default user. Do **not** set `PUID`/`PGID` (the image does not read them) and do **not** force `USER_UID`/`USER_GID` to `99`/`100` (see the `EACCES` entry above - that crash is the result). The host-side numeric owner of `/mnt/user/appdata/paperclip/` is cosmetic for container workloads and does not need to match `99`/`100`.
 
 ## Local adapter CLIs fail inside the container
 

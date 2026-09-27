@@ -56,6 +56,6 @@ If no template changes are required, bump `Branch` to the new tag, update `READM
 - **Image tags have no `v` prefix** - the git tag is `v2026.916.1` but the image tag is `2026.916.1`. Do not use the `v`-prefixed tag in the template.
 - **`BETTER_AUTH_SECRET` is required** at startup since the server will not boot without it.
 - **`local_trusted` deployment mode is loopback-only** - unusable behind the Unraid WebUI button; keep `authenticated`.
-- **UID remap uses `USER_UID`/`USER_GID`**, not `PUID`/`PGID`.
+- **The image *supports* `USER_UID`/`USER_GID`** (not `PUID`/`PGID`), but this integration deliberately **leaves them unset**: forcing the Unraid 99/100 uid crash-loops the container on first boot (`EACCES` on native-library symlinks). The container runs as the image's built-in default user.
 - **No Docker `HEALTHCHECK` is defined in the image** - use `/api/health` via a health-check plugin or the curl command in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 - **Single data volume** - `/paperclip` holds the embedded database, uploads, workspaces, and the secrets key. Do not split it into separate mappings.

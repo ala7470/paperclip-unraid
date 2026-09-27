@@ -54,14 +54,14 @@ if "CHANGE-ME" in params.findtext("Icon"):
 variables = {v.get("name"): v for v in root.findall("Variable")}
 for var in ["HOST", "PORT", "PAPERCLIP_HOME", "PAPERCLIP_DEPLOYMENT_MODE",
             "PAPERCLIP_DEPLOYMENT_EXPOSURE", "PAPERCLIP_PUBLIC_URL",
-            "BETTER_AUTH_SECRET", "USER_UID", "USER_GID"]:
+            "BETTER_AUTH_SECRET"]:
     if var not in variables:
         sys.exit(f"FAIL: missing Variable {var}")
 
 # No invented variables the image does not support
-for var in ["PUID", "PGID", "UMASK"]:
+for var in ["PUID", "PGID", "UMASK", "USER_UID", "USER_GID"]:
     if var in variables:
-        sys.exit(f"FAIL: unsupported variable {var} present - the image uses USER_UID/USER_GID")
+        sys.exit(f"FAIL: forbidden variable {var} present - the container must run as the image's default user (overriding causes EACCES crash)")
 
 if variables["BETTER_AUTH_SECRET"].get("required") != "true":
     sys.exit("FAIL: BETTER_AUTH_SECRET must be required=true")
